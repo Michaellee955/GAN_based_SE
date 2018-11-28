@@ -10,7 +10,7 @@ segan-master/data
 segan-master/model
 
 # papers
-papers/
+# papers/
 
 # C extensions
 *.so
