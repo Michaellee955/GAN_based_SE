@@ -26,7 +26,7 @@ parser.add_argument("--summary_freq", type=int, default=100, help="update summar
 parser.add_argument("--progress_freq", type=int, default=50, help="display progress every progress_freq steps")
 parser.add_argument("--trace_freq", type=int, default=0, help="trace execution every trace_freq steps")
 parser.add_argument("--display_freq", type=int, default=0, help="write current training images every display_freq steps")
-parser.add_argument("--save_freq", type=int, default=5000, help="save model every save_freq steps, 0 to disable")
+parser.add_argument("--save_freq", type=int, default=5000, help="save models every save_freq steps, 0 to disable")
 
 parser.add_argument("--separable_conv", action="store_true", help="use separable convolutions in the generator")
 parser.add_argument("--aspect_ratio", type=float, default=1.0, help="aspect ratio of output images (width/height)")
@@ -613,10 +613,10 @@ def main():
 
         with tf.Session() as sess:
             sess.run(init_op)
-            print("loading model from checkpoint")
+            print("loading models from checkpoint")
             checkpoint = tf.train.latest_checkpoint(a.checkpoint)
             restore_saver.restore(sess, checkpoint)
-            print("exporting model")
+            print("exporting models")
             export_saver.export_meta_graph(filename=os.path.join(a.output_dir, "export.meta"))
             export_saver.save(sess, os.path.join(a.output_dir, "export"), write_meta_graph=False)
 
@@ -713,7 +713,7 @@ def main():
         print("parameter_count =", sess.run(parameter_count))
 
         if a.checkpoint is not None:
-            print("loading model from checkpoint")
+            print("loading models from checkpoint")
             checkpoint = tf.train.latest_checkpoint(a.checkpoint)
             saver.restore(sess, checkpoint)
 
@@ -793,8 +793,8 @@ def main():
                     print("gen_loss_L1", results["gen_loss_L1"])
 
                 if should(a.save_freq):
-                    print("saving model")
-                    saver.save(sess, os.path.join(a.output_dir, "model"), global_step=sv.global_step)
+                    print("saving models")
+                    saver.save(sess, os.path.join(a.output_dir, "models"), global_step=sv.global_step)
 
                 if sv.should_stop():
                     break

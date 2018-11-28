@@ -1,16 +1,15 @@
 from __future__ import print_function
-import tensorflow as tf
-from tensorflow.contrib.layers import batch_norm, fully_connected, flatten
-from tensorflow.contrib.layers import xavier_initializer
-from scipy.io import wavfile
-from generator import *
-from discriminator import *
-import numpy as np
-from data_loader import read_and_decode, de_emph
-from bnorm import VBN
-from ops import *
-import timeit
+
 import os
+import timeit
+
+from scipy.io import wavfile
+
+from segan.bnorm import VBN
+from segan.data_loader import read_and_decode, de_emph
+from segan.discriminator import *
+from segan.generator import *
+from segan.ops import *
 
 
 class Model(object):
@@ -181,9 +180,7 @@ class SEGAN(Model):
             #self.sample_wavs = tf.placeholder(tf.float32, [self.batch_size,
             #                                               self.canvas_size],
             #                                  name='sample_wavs')
-            ref_Gs = self.generator(noisybatch, is_ref=True,
-                                    spk=None,
-                                    do_prelu=do_prelu)
+            ref_Gs = self.generator(noisybatch, is_ref=True, spk=None, do_prelu=do_prelu)
             print('num of G returned: ', len(ref_Gs))
             self.reference_G = ref_Gs[0]
             self.ref_z = ref_Gs[1]
@@ -201,8 +198,7 @@ class SEGAN(Model):
             dummy = discriminator(self, dummy_joint,
                                   reuse=False)
 
-        G, z  = self.generator(noisybatch, is_ref=False, spk=None,
-                               do_prelu=do_prelu)
+        G, z  = self.generator(noisybatch, is_ref=False, spk=None, do_prelu=do_prelu)
         self.Gs.append(G)
         self.zs.append(z)
 
@@ -440,8 +436,7 @@ class SEGAN(Model):
                 d_rl_losses.append(d_rl_loss)
                 g_adv_losses.append(g_adv_loss)
                 g_l1_losses.append(g_l1_loss)
-                print('{}/{} (epoch {}), d_rl_loss = {:.5f}, '
-                      'd_fk_loss = {:.5f}, '#d_nfk_loss = {:.5f}, '
+                print('{}/{} (epoch {}), d_rl_loss = {:.5f},d_fk_loss = {:.5f},'
                       'g_adv_loss = {:.5f}, g_l1_loss = {:.5f},'
                       ' time/batch = {:.5f}, '
                       'mtime/batch = {:.5f}'.format(counter,
@@ -535,7 +530,7 @@ class SEGAN(Model):
                     # done training
                     print('Done training; epoch limit {} '
                           'reached.'.format(self.epoch))
-                    print('Saving last model at iteration {}'.format(counter))
+                    print('Saving last models at iteration {}'.format(counter))
                     self.save(config.save_path, counter)
                     self.writer.add_summary(_g_sum, counter)
                     self.writer.add_summary(_d_sum, counter)
@@ -800,7 +795,7 @@ class SEAE(Model):
                     # done training
                     print('Done training; epoch limit {} '
                           'reached.'.format(self.epoch))
-                    print('Saving last model at iteration {}'.format(counter))
+                    print('Saving last models at iteration {}'.format(counter))
                     self.save(config.save_path, counter)
                     self.writer.add_summary(_g_sum, counter)
                     break

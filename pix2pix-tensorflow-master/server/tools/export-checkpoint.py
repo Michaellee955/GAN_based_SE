@@ -40,7 +40,7 @@ def main():
                 model_path = val
 
     if model_path is None:
-        raise Exception("failed to find model path")
+        raise Exception("failed to find models path")
 
     checkpoint_file = os.path.join(args.checkpoint, model_path)
     with tempfile.TemporaryDirectory() as tmp_dir:

@@ -50,7 +50,7 @@ class TensorflowCheckpointDumper(CheckpointDumper):
     Parameters
     ----------
     checkpoint_file : str
-        Path to the model checkpoint
+        Path to the models checkpoint
     output_dir : str
         Output directory path
     remove_variables_regex : str

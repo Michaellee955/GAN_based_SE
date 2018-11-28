@@ -4977,7 +4977,7 @@ var GraphRunner = (function () {
         for (var i = 0; i < inferenceFeedEntries.length; i++) {
             var feedEntry = inferenceFeedEntries[i];
             if (feedEntry.data instanceof ndarray_1.NDArray) {
-                throw new Error('Cannot start inference on the model runner with feed entries of ' +
+                throw new Error('Cannot start inference on the models runner with feed entries of ' +
                     'type NDArray. Please use InputProviders.');
             }
         }

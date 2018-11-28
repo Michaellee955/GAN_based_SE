@@ -35,7 +35,7 @@ class CheckpointDumper(object):
   Attributes
   ----------
   checkpoint_file : str
-      Path to the model checkpoint
+      Path to the models checkpoint
   FILENAME_CHARS : str
       Allowed file char names
   manifest : dict
@@ -56,7 +56,7 @@ class CheckpointDumper(object):
     Parameters
     ----------
     checkpoint_file : str
-        Path to the model checkpoint
+        Path to the models checkpoint
     output_dir : str
         Output directory path
     remove_variables_regex : str
@@ -124,7 +124,7 @@ class CheckpointDumper(object):
 
   def dump_manifest(self, filename='manifest.json'):
     """Creates a manifest file with given name and dumps meta information
-    related to model.
+    related to models.
 
     Parameters
     ----------

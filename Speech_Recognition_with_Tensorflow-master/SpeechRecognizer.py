@@ -42,7 +42,7 @@ class SpeechRecognizer:
         Args:
             char2ind: lookup dict from char to index.
             ind2char: lookup dict from index to char.
-            save_path: path to save the tf model to.
+            save_path: path to save the tf models to.
             mode: String. 'TRAIN' or 'INFER'. depending on which mode we use
                   a different graph is created.
             num_layers_encoder: Float. Number of encoder layers. defaults to 1.
@@ -499,7 +499,7 @@ class SpeechRecognizer:
         """Performs the training process. Runs training step in every epoch.
            Shuffles input data before every epoch.
            Optionally: - add tensorboard summaries.
-                       - restoring previous model and retraining on top.
+                       - restoring previous models and retraining on top.
                        - evaluation step.
         """
         assert len(inputs) == len(targets)
@@ -528,7 +528,7 @@ class SpeechRecognizer:
             # run training epoch
             score = self.run_epoch(inputs, targets, epoch)
 
-            # evaluate model
+            # evaluate models
             if validation_inputs is not None and validation_targets is not None:
                 self.run_evaluate(validation_inputs, validation_targets, epoch)
 

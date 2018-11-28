@@ -114,7 +114,7 @@ function render() {
 }
 
 
-// model
+// models
 
 var weights_cache = {}
 function fetch_weights(path, progress_cb) {
@@ -476,7 +476,7 @@ Editor.prototype = {
           fetch_weights(this.config.weights_url, progress_cb).then((weights) => {
             this.progress = null
             update()
-            // delay a short period of time so that UI updates before the model uses all the CPU
+            // delay a short period of time so that UI updates before the models uses all the CPU
             delay(() => {
               // var g = new dl.Graph()
 

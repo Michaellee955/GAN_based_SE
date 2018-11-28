@@ -23,7 +23,7 @@ import argparse
 
 
 def get_checkpoint_dumper(model_type, checkpoint_file, output_dir, remove_variables_regex):
-  """Returns Checkpoint dumper instance for a given model type.
+  """Returns Checkpoint dumper instance for a given models type.
 
   Parameters
   ----------
@@ -39,12 +39,12 @@ def get_checkpoint_dumper(model_type, checkpoint_file, output_dir, remove_variab
   Returns
   -------
   (TensorflowCheckpointDumper, PytorchCheckpointDumper)
-      Checkpoint Dumper Instance for corresponding model type
+      Checkpoint Dumper Instance for corresponding models type
 
   Raises
   ------
   Error
-      If particular model type is not supported
+      If particular models type is not supported
   """
   if model_type == 'tensorflow':
     from tensorflow_checkpoint_dumper import TensorflowCheckpointDumper
@@ -71,7 +71,7 @@ if __name__ == '__main__':
       '--checkpoint_file',
       type=str,
       required=True,
-      help='Path to the model checkpoint')
+      help='Path to the models checkpoint')
   parser.add_argument(
       '--output_dir',
       type=str,

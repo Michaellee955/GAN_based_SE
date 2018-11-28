@@ -1,6 +1,5 @@
 from __future__ import print_function
-import tensorflow as tf
-from ops import *
+from segan.ops import *
 import numpy as np
 
 

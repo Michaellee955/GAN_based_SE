@@ -4,10 +4,10 @@ __pycache__/
 *$py.class
 
 # data file
-segan-master/data
+segan/data
 
 # model file
-segan-master/model
+segan/models
 
 # papers
 # papers/
