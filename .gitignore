@@ -3,6 +3,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# data file
+segan-master/data
+
+# model file
+segan-master/model
+
+# papers
+papers/
+
 # C extensions
 *.so
 
@@ -102,3 +111,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# mac files
+.DS_Store
+.idea/
