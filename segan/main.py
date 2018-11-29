@@ -6,7 +6,11 @@ import numpy as np
 import tensorflow as tf
 from scipy.io import wavfile
 from tensorflow.python.client import device_lib
+import sys
+from os.path import dirname, abspath
 
+d = dirname(dirname(abspath(__file__)))
+sys.path.append(d)
 from segan.data_loader import pre_emph
 from segan.model import SEGAN, SEAE
 
@@ -85,10 +89,10 @@ def main(_):
         udevices.append(device.name)
     # execute the session
     with tf.Session(config=config) as sess:
-        if FLAGS.model == 'gan':
+        if FLAGS.models == 'gan':
             print('Creating GAN models')
             se_model = SEGAN(sess, FLAGS, udevices)
-        elif FLAGS.model == 'ae':
+        elif FLAGS.models == 'ae':
             print('Creating AE models')
             se_model = SEAE(sess, FLAGS, udevices)
         else:
