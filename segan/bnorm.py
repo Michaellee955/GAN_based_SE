@@ -29,6 +29,7 @@ class VBN(object):
             self.reference_output = out
 
     def __call__(self, x):
+
         shape = x.get_shape().as_list()
         with tf.variable_scope(self.name) as scope:
             new_coeff = 1. / (self.batch_size + 1.)
@@ -44,9 +45,11 @@ class VBN(object):
         # make sure this is called with a variable scope
         shape = x.get_shape().as_list()
         assert len(shape) == 3
-        self.gamma = tf.get_variable("gamma", [shape[-1]], initializer=tf.random_normal_initializer(1., 0.02))
+        self.gamma = tf.get_variable("gamma", [shape[-1]],
+                                initializer=tf.random_normal_initializer(1., 0.02))
         gamma = tf.reshape(self.gamma, [1, 1, -1])
-        self.beta = tf.get_variable("beta", [shape[-1]], initializer=tf.constant_initializer(0.))
+        self.beta = tf.get_variable("beta", [shape[-1]],
+                                initializer=tf.constant_initializer(0.))
         beta = tf.reshape(self.beta, [1, 1, -1])
         assert self.epsilon is not None
         assert mean_sq is not None
