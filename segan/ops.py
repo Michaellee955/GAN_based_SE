@@ -29,28 +29,28 @@ def scalar_summary(name, x):
     try:
         summ = tf.summary.scalar(name, x)
     except AttributeError:
-        summ = tf.summary.scalar(name, x)
+        summ = tf.scalar_summary(name, x)
     return summ
 
 def histogram_summary(name, x):
     try:
         summ = tf.summary.histogram(name, x)
     except AttributeError:
-        summ = tf.summary.histogram(name, x)
+        summ = tf.histogram_summary(name, x)
     return summ
 
 def tensor_summary(name, x):
     try:
         summ = tf.summary.tensor_summary(name, x)
     except AttributeError:
-        summ = tf.summary.tensor_summary(name, x)
+        summ = tf.tensor_summary(name, x)
     return summ
 
 def audio_summary(name, x, sampling_rate=16e3):
     try:
         summ = tf.summary.audio(name, x, sampling_rate)
     except AttributeError:
-        summ = tf.summary.audio(name, x, sampling_rate)
+        summ = tf.audio_summary(name, x, sampling_rate)
     return summ
 
 def minmax_normalize(x, x_min, x_max, o_min=-1., o_max=1.):
@@ -89,12 +89,12 @@ def highway(input_, size, layer_size=1, bias=-2, f=tf.nn.relu, name='hw'):
     where g is nonlinearity, t is transform gate, and (1 - t) is carry gate.
     """
     output = input_
-    for idx in range(layer_size):
+    for idx in xrange(layer_size):
         lin_scope = '{}_output_lin_{}'.format(name, idx)
-        output = f(tf.contrib.rnn._linear(output, size, 0, scope=lin_scope))
+        output = f(tf.nn.rnn_cell._linear(output, size, 0, scope=lin_scope))
         transform_scope = '{}_transform_lin_{}'.format(name, idx)
         transform_gate = tf.sigmoid(
-            tf.contrib.rnn._linear(input_, size, 0, scope=transform_scope) + bias)
+            tf.nn.rnn_cell._linear(input_, size, 0, scope=transform_scope) + bias)
         carry_gate = 1. - transform_gate
 
         output = transform_gate * output + carry_gate * input_
@@ -202,7 +202,7 @@ def residual_block(input_, dilation, kwidth, num_kernels=1,
         z = tf.nn.sigmoid(z_a)
         print('gate shape: ', z.get_shape())
         # element-wise apply the gate
-        gated_h = tf.multiply(z, h)
+        gated_h = tf.mul(z, h)
         print('gated h shape: ', gated_h.get_shape())
         #make res connection
         h_ = conv1d(gated_h, kwidth=1, num_kernels=1,
@@ -218,6 +218,44 @@ def residual_block(input_, dilation, kwidth, num_kernels=1,
             return res, skip
         else:
             return res
+
+
+# Code from keras backend 
+# https://github.com/fchollet/keras/blob/master/keras/backend/tensorflow_backend.py
+def repeat_elements(x, rep, axis):
+    """Repeats the elements of a tensor along an axis, like `np.repeat`.
+    If `x` has shape `(s1, s2, s3)` and `axis` is `1`, the output
+    will have shape `(s1, s2 * rep, s3)`.
+    # Arguments
+        x: Tensor or variable.
+        rep: Python integer, number of times to repeat.
+        axis: Axis along which to repeat.
+    # Raises
+        ValueError: In case `x.shape[axis]` is undefined.
+    # Returns
+        A tensor.
+    """
+    x_shape = x.get_shape().as_list()
+    if x_shape[axis] is None:
+        raise ValueError('Axis ' + str(axis) + ' of input tensor '
+                         'should have a defined dimension, but is None. '
+                         'Full tensor shape: ' + str(tuple(x_shape)) + '. '
+                         'Typically you need to pass a fully-defined '
+                         '`input_shape` argument to your first layer.')
+    # slices along the repeat axis
+    splits = tf.split(split_dim=axis, num_split=x_shape[axis], value=x)
+    # repeat each slice the given number of reps
+    x_rep = [s for s in splits for _ in range(rep)]
+    return tf.concat(axis, x_rep)
+
+def nn_deconv(x, kwidth=5, dilation=2, init=None, uniform=False,
+              bias_init=None, name='nn_deconv1d'):
+    # first compute nearest neighbour interpolated x
+    interp_x = repeat_elements(x, dilation, 1)
+    # run a convolution over the interpolated fmap
+    dec = conv1d(interp_x, kwidth=5, num_kernels=1, init=init, uniform=uniform, 
+                 bias_init=bias_init, name=name, padding='SAME')
+    return dec
 
 
 def deconv(x, output_shape, kwidth=5, dilation=2, init=None, uniform=False,
@@ -243,8 +281,8 @@ def deconv(x, output_shape, kwidth=5, dilation=2, init=None, uniform=False,
         except AttributeError:
             # support for versions of TF before 0.7.0
             # based on https://github.com/carpedm20/DCGAN-tensorflow
-            deconv = tf.nn.conv2d_transpose(x2d, W, output_shape=o2d,
-                                            strides=[1, dilation, 1, 1])
+            deconv = tf.nn.deconv2d(x2d, W, output_shape=o2d,
+                                    strides=[1, dilation, 1, 1])
         if bias_init is not None:
             b = tf.get_variable('b', [out_channels],
                                 initializer=tf.constant_initializer(0.))
@@ -254,7 +292,6 @@ def deconv(x, output_shape, kwidth=5, dilation=2, init=None, uniform=False,
         # reshape back to 1d
         deconv = tf.reshape(deconv, output_shape)
         return deconv
-
 
 def conv2d(input_, output_dim, k_h, k_w, stddev=0.05, name="conv2d", with_w=False):
     with tf.variable_scope(name):
@@ -302,7 +339,7 @@ def average_gradients(tower_grads):
             grads.append(expanded_g)
 
         # Build the tensor and average along tower dimension
-        grad = tf.concat(grads, 0)
+        grad = tf.concat(0, grads)
         grad = tf.reduce_mean(grad, 0)
 
         # The Variables are redundant because they are shared across towers

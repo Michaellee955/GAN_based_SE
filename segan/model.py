@@ -6,7 +6,7 @@ from scipy.io import wavfile
 from generator import *
 from discriminator import *
 import numpy as np
-from data_loader import read_and_decode
+from data_loader import read_and_decode, de_emph
 from bnorm import VBN
 from ops import *
 import timeit
@@ -67,6 +67,12 @@ class SEGAN(Model):
         self.devices = devices
         self.z_dim = args.z_dim
         self.z_depth = args.z_depth
+        # type of deconv
+        self.deconv_type = args.deconv_type
+        # specify if use biases or not
+        self.bias_downconv = args.bias_downconv
+        self.bias_deconv = args.bias_deconv
+        self.bias_D_conv = args.bias_D_conv
         # clip D values
         self.d_clip_weights = False
         # apply VBN or regular BN?
@@ -75,6 +81,12 @@ class SEGAN(Model):
         # num of updates to be applied to D before G
         # this is k in original GAN paper (https://arxiv.org/abs/1406.2661)
         self.disc_updates = 1
+        # set preemph factor
+        self.preemph = args.preemph
+        if self.preemph > 0:
+            print('*** Applying pre-emphasis of {} ***'.format(self.preemph))
+        else:
+            print('--- No pre-emphasis applied ---')
         # canvas size
         self.canvas_size = args.canvas_size
         self.deactivated_noise = False
@@ -108,28 +120,25 @@ class SEGAN(Model):
     def build_model(self, config):
         all_d_grads = []
         all_g_grads = []
+        d_opt = tf.train.RMSPropOptimizer(config.d_learning_rate)
+        g_opt = tf.train.RMSPropOptimizer(config.g_learning_rate)
+        #d_opt = tf.train.AdamOptimizer(config.d_learning_rate,
+        #                               beta1=config.beta_1)
+        #g_opt = tf.train.AdamOptimizer(config.g_learning_rate,
+        #                               beta1=config.beta_1)
 
-        #d_opt = tf.train.RMSPropOptimizer(config.d_learning_rate)
-        #g_opt = tf.train.RMSPropOptimizer(config.g_learning_rate)
-        d_opt = tf.train.AdamOptimizer(config.d_learning_rate,
-                                       beta1=config.beta_1)
-        g_opt = tf.train.AdamOptimizer(config.g_learning_rate,
-                                       beta1=config.beta_1)
-
-        with tf.variable_scope(tf.get_variable_scope()) as scope:
-          for idx, device in enumerate(self.devices):
-              with tf.device("/%s" % device):
-                  with tf.name_scope("device_%s" % idx):
-                      with variables_on_gpu0():
-                          self.build_model_single_gpu(idx)
-
-                          d_grads = d_opt.compute_gradients(self.d_losses[-1],
-                                                            var_list=self.d_vars)
-                          g_grads = g_opt.compute_gradients(self.g_losses[-1],
-                                                            var_list=self.g_vars)
-                          all_d_grads.append(d_grads)
-                          all_g_grads.append(g_grads)
-
+        for idx, device in enumerate(self.devices):
+            with tf.device("/%s" % device):
+                with tf.name_scope("device_%s" % idx):
+                    with variables_on_gpu0():
+                        self.build_model_single_gpu(idx)
+                        d_grads = d_opt.compute_gradients(self.d_losses[-1],
+                                                          var_list=self.d_vars)
+                        g_grads = g_opt.compute_gradients(self.g_losses[-1],
+                                                          var_list=self.g_vars)
+                        all_d_grads.append(d_grads)
+                        all_g_grads.append(g_grads)
+                        tf.get_variable_scope().reuse_variables()
         avg_d_grads = average_gradients(all_d_grads)
         avg_g_grads = average_gradients(all_g_grads)
         self.d_opt = d_opt.apply_gradients(avg_d_grads)
@@ -141,7 +150,8 @@ class SEGAN(Model):
             # create the nodes to load for input pipeline
             filename_queue = tf.train.string_input_producer([self.e2e_dataset])
             self.get_wav, self.get_noisy = read_and_decode(filename_queue,
-                                                           2 ** 14)
+                                                           self.canvas_size,
+                                                           self.preemph)
         # load the data to input pipeline
         wavbatch, \
         noisybatch = tf.train.shuffle_batch([self.get_wav,
@@ -187,7 +197,7 @@ class SEGAN(Model):
             # make a dummy copy of discriminator to have variables and then
             # be able to set up the variable reuse for all other devices
             # merge along channels and this would be a real batch
-            dummy_joint = tf.concat(axis=2, values=[wavbatch, noisybatch])
+            dummy_joint = tf.concat(2, [wavbatch, noisybatch])
             dummy = discriminator(self, dummy_joint,
                                   reuse=False)
 
@@ -197,8 +207,8 @@ class SEGAN(Model):
         self.zs.append(z)
 
         # add new dimension to merge with other pairs
-        D_rl_joint = tf.concat(axis=2, values=[wavbatch, noisybatch])
-        D_fk_joint = tf.concat(axis=2, values=[G, noisybatch])
+        D_rl_joint = tf.concat(2, [wavbatch, noisybatch])
+        D_fk_joint = tf.concat(2, [G, noisybatch])
         # build rl discriminator
         d_rl_logits = discriminator(self, D_rl_joint, reuse=True)
         # build fk G discriminator
@@ -233,7 +243,8 @@ class SEGAN(Model):
         d_loss = d_rl_loss + d_fk_loss
 
         # Add the L1 loss to G
-        g_l1_loss = self.l1_lambda * tf.reduce_mean(tf.abs(tf.subtract(G, wavbatch)))
+        g_l1_loss = self.l1_lambda * tf.reduce_mean(tf.abs(tf.sub(G,
+                                                                  wavbatch)))
 
         g_loss = g_adv_loss + g_l1_loss
 
@@ -268,9 +279,8 @@ class SEGAN(Model):
                 self.d_vars_dict[var.name] = var
             if var.name.startswith('g_'):
                 self.g_vars_dict[var.name] = var
-        self.d_vars = list(self.d_vars_dict.values())
-        self.g_vars = list(self.g_vars_dict.values())
-
+        self.d_vars = self.d_vars_dict.values()
+        self.g_vars = self.g_vars_dict.values()
         for x in self.d_vars:
             assert x not in self.g_vars
         for x in self.g_vars:
@@ -315,7 +325,7 @@ class SEGAN(Model):
             init = tf.global_variables_initializer()
         except AttributeError:
             # fall back to old implementation
-            init = tf.global_variables_initializer()
+            init = tf.initialize_all_variables()
 
         print('Initializing variables...')
         self.sess.run(init)
@@ -434,7 +444,7 @@ class SEGAN(Model):
                       'd_fk_loss = {:.5f}, '#d_nfk_loss = {:.5f}, '
                       'g_adv_loss = {:.5f}, g_l1_loss = {:.5f},'
                       ' time/batch = {:.5f}, '
-                      'mtime/batch = {:.5f}'     .format(counter,
+                      'mtime/batch = {:.5f}'.format(counter,
                                                     config.epoch * num_batches,
                                                     curr_epoch,
                                                     d_rl_loss,
@@ -457,19 +467,45 @@ class SEGAN(Model):
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy
                     for m in range(min(20, canvas_w.shape[0])):
-                        print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
-                        wavfile.write(os.path.join(save_path, 'sample_{}-{}.wav'.format(counter, m)), 16000, canvas_w[m])
-                        if not os.path.exists(os.path.join(save_path, 'gtruth_{}.wav'.format(m))):
-                            wavfile.write(os.path.join(save_path, 'gtruth_{}.wav'.format(m)), 16000, swaves[m])
-                            wavfile.write(os.path.join(save_path, 'noisy_{}.wav'.format(m)), 16000, sample_noisy[m])
-                            wavfile.write(os.path.join(save_path, 'dif_{}.wav'.format(m)), 16000, sample_dif[m])
-                        np.savetxt(os.path.join(save_path, 'd_rl_losses.txt'), d_rl_losses)
-                        np.savetxt(os.path.join(save_path, 'd_fk_losses.txt'), d_fk_losses)
-                        #np.savetxt(os.path.join(save_path, 'd_nfk_losses.txt'), d_nfk_losses)
-                        np.savetxt(os.path.join(save_path, 'g_adv_losses.txt'), g_adv_losses)
-                        np.savetxt(os.path.join(save_path, 'g_l1_losses.txt'), g_l1_losses)
+                        print('w{} max: {} min: {}'.format(m,
+                                                           np.max(canvas_w[m]),
+                                                           np.min(canvas_w[m])))
+                        wavfile.write(os.path.join(save_path,
+                                                   'sample_{}-'
+                                                   '{}.wav'.format(counter, m)),
+                                      16e3,
+                                      de_emph(canvas_w[m],
+                                              self.preemph))
+                        m_gtruth_path = os.path.join(save_path, 'gtruth_{}.'
+                                                                'wav'.format(m))
+                        if not os.path.exists(m_gtruth_path):
+                            wavfile.write(os.path.join(save_path,
+                                                       'gtruth_{}.'
+                                                       'wav'.format(m)),
+                                          16e3,
+                                          de_emph(swaves[m],
+                                                  self.preemph))
+                            wavfile.write(os.path.join(save_path,
+                                                       'noisy_{}.'
+                                                       'wav'.format(m)),
+                                          16e3,
+                                          de_emph(sample_noisy[m],
+                                                  self.preemph))
+                            wavfile.write(os.path.join(save_path,
+                                                       'dif_{}.wav'.format(m)),
+                                          16e3,
+                                          de_emph(sample_dif[m],
+                                                  self.preemph))
+                        np.savetxt(os.path.join(save_path, 'd_rl_losses.txt'),
+                                   d_rl_losses)
+                        np.savetxt(os.path.join(save_path, 'd_fk_losses.txt'),
+                                   d_fk_losses)
+                        np.savetxt(os.path.join(save_path, 'g_adv_losses.txt'),
+                                   g_adv_losses)
+                        np.savetxt(os.path.join(save_path, 'g_l1_losses.txt'),
+                                   g_l1_losses)
 
-                if batch_idx >= int(num_batches):
+                if batch_idx >= num_batches:
                     curr_epoch += 1
                     # re-set batch idx
                     batch_idx = 0
@@ -499,6 +535,10 @@ class SEGAN(Model):
                     # done training
                     print('Done training; epoch limit {} '
                           'reached.'.format(self.epoch))
+                    print('Saving last model at iteration {}'.format(counter))
+                    self.save(config.save_path, counter)
+                    self.writer.add_summary(_g_sum, counter)
+                    self.writer.add_summary(_d_sum, counter)
                     break
         except tf.errors.OutOfRangeError:
             print('Done training; epoch limit {} reached.'.format(self.epoch))
@@ -511,14 +551,14 @@ class SEGAN(Model):
             x: numpy array containing the normalized noisy waveform
         """
         c_res = None
-        for beg_i in range(0, x.shape[0], 2 ** 14):
-            if x.shape[0] - beg_i  < 2 ** 14:
+        for beg_i in range(0, x.shape[0], self.canvas_size):
+            if x.shape[0] - beg_i  < self.canvas_size:
                 length = x.shape[0] - beg_i
-                pad = (2 ** 14) - length
+                pad = (self.canvas_size) - length
             else:
-                length = 2 ** 14
+                length = self.canvas_size
                 pad = 0
-            x_ = np.zeros((self.batch_size, 2 ** 14))
+            x_ = np.zeros((self.batch_size, self.canvas_size))
             if pad > 0:
                 x_[0] = np.concatenate((x[beg_i:beg_i + length], np.zeros(pad)))
             else:
@@ -527,7 +567,7 @@ class SEGAN(Model):
             fdict = {self.gtruth_noisy[0]:x_}
             canvas_w = self.sess.run(self.Gs[0],
                                      feed_dict=fdict)[0]
-            canvas_w = canvas_w.reshape((2 ** 14))
+            canvas_w = canvas_w.reshape((self.canvas_size))
             print('canvas w shape: ', canvas_w.shape)
             if pad > 0:
                 print('Removing padding of {} samples'.format(pad))
@@ -537,6 +577,8 @@ class SEGAN(Model):
                 c_res = canvas_w
             else:
                 c_res = np.concatenate((c_res, canvas_w))
+        # deemphasize
+        c_res = de_emph(c_res, self.preemph)
         return c_res
 
 
@@ -629,7 +671,7 @@ class SEAE(Model):
             self.g_losses = []
 
         # Add the L1 loss to G
-        g_loss = tf.reduce_mean(tf.abs(tf.subtract(G, wavbatch)))
+        g_loss = tf.reduce_mean(tf.abs(tf.sub(G, wavbatch)))
 
         self.g_losses.append(g_loss)
 
@@ -657,7 +699,7 @@ class SEAE(Model):
             init = tf.global_variables_initializer()
         except AttributeError:
             # fall back to old implementation
-            init = tf.global_variables_initializer()
+            init = tf.initialize_all_variables()
 
         print('Initializing variables...')
         self.sess.run(init)
@@ -682,11 +724,9 @@ class SEAE(Model):
         # Hang onto a copy of wavs so we can feed the same one every time
         # we store samples to disk for hearing
         # pick a single batch
-        # sample_noisy, \
-        # sample_wav = self.sess.run([self.gtruth_noisy[0],
-        #                            self.gtruth_wavs[0]])
-        sample_noisy = self.gtruth_noisy[0]
-        sample_wav = self.gtruth_wavs[0]
+        sample_noisy, \
+        sample_wav = self.sess.run([self.gtruth_noisy[0],
+                                    self.gtruth_wavs[0]])
         print('sample noisy shape: ', sample_noisy.shape)
         print('sample wav shape: ', sample_wav.shape)
         save_path = config.save_path
@@ -745,14 +785,14 @@ class SEAE(Model):
                     sample_dif = sample_wav - sample_noisy
                     for m in range(min(20, canvas_w.shape[0])):
                         print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
-                        wavfile.write(os.path.join(save_path, 'sample_{}-{}.wav'.format(counter, m)), 16000, canvas_w[m])
+                        wavfile.write(os.path.join(save_path, 'sample_{}-{}.wav'.format(counter, m)), 16e3, canvas_w[m])
                         if not os.path.exists(os.path.join(save_path, 'gtruth_{}.wav'.format(m))):
-                            wavfile.write(os.path.join(save_path, 'gtruth_{}.wav'.format(m)), 16000, swaves[m])
-                            wavfile.write(os.path.join(save_path, 'noisy_{}.wav'.format(m)), 16000, sample_noisy[m])
-                            wavfile.write(os.path.join(save_path, 'dif_{}.wav'.format(m)), 16000, sample_dif[m])
+                            wavfile.write(os.path.join(save_path, 'gtruth_{}.wav'.format(m)), 16e3, swaves[m])
+                            wavfile.write(os.path.join(save_path, 'noisy_{}.wav'.format(m)), 16e3, sample_noisy[m])
+                            wavfile.write(os.path.join(save_path, 'dif_{}.wav'.format(m)), 16e3, sample_dif[m])
                         np.savetxt(os.path.join(save_path, 'g_losses.txt'), g_losses)
 
-                if batch_idx >= int(num_batches):
+                if batch_idx >= num_batches:
                     curr_epoch += 1
                     # re-set batch idx
                     batch_idx = 0
@@ -760,6 +800,9 @@ class SEAE(Model):
                     # done training
                     print('Done training; epoch limit {} '
                           'reached.'.format(self.epoch))
+                    print('Saving last model at iteration {}'.format(counter))
+                    self.save(config.save_path, counter)
+                    self.writer.add_summary(_g_sum, counter)
                     break
         except tf.errors.OutOfRangeError:
             print('[!] Reached queues limits in training loop')

@@ -3,14 +3,26 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# wav files
+*.wav
+
+# compressed files
+*.tar.gz
+
+# processing files
+segan/segan_v1/train/*
+
 # data file
 segan/data
 Speech_Recognition_with_Tensorflow-master/data
+
 # model file
+segan/segan_v1.1/
 segan/models
 segan/segan_allbiased_preemph/
 Speech_Recognition_with_Tensorflow-master/models
 Speech_Recognition_with_Tensorflow-master/pickles
+
 # papers
 # papers/
 
