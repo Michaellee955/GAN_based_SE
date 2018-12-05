@@ -139,11 +139,11 @@ def load_data(dir_path, how_many=0):
 
     """
     dir_path = Path(dir_path)
-    txt_list = [f for f in dir_path.glob('**/*.txt') if f.is_file()]
-    audio_list = [f for f in dir_path.glob('**/*.flac') if f.is_file()]
+    txt_list = [f for f in dir_path.glob('**/**/*.txt') if f.is_file()]
+    audio_list = [f for f in dir_path.glob('**/**/*.flac') if f.is_file()]
 
-    print('Number of audio txt paths:', len(txt_list))
-    print('Number of audio file paths:', len(audio_list))
+    print ('Number of audio txt paths:', len(txt_list))
+    print ('Number of audio file paths:', len(audio_list))
 
     txts = []
     audios = []
@@ -172,7 +172,7 @@ def split_txts(txts):
     """
     Args:
         txts: The texts that will be split
-              into single characters
+              into single characters i.e. sentence
 
     Returns:
         The splitted texts and array of all unique characters
@@ -208,11 +208,11 @@ def create_lookup_dicts(unique_chars, specials=None):
     i = 0
 
     if specials is not None:
-        for sp in specials:
+        for sp in specials:   # special characters come first
             char2ind[sp] = i
             ind2char[i] = sp
             i += 1
-    for ch in unique_chars:
+    for ch in unique_chars: # align char in unique_chars in sequence
         char2ind[ch] = i
         ind2char[i] = ch
         i += 1
@@ -271,8 +271,10 @@ def process_txts(txts, specials):
                         word2ind. i.e. array of arrays of ints.
 
     """
-    txts_splitted, unique_chars = split_txts(txts)
-    char2ind, ind2char = create_lookup_dicts(unique_chars, specials)
+    txts_splitted, unique_chars = split_txts(txts)   # txts_splitted: words->chars, list of list
+                                                     #   unique_chars: sorted char dic list
+    char2ind, ind2char = create_lookup_dicts(unique_chars, specials) #char2ind: char:index
+                                                                     #ind2char: index:char
     txts_converted = [convert_txt_to_inds(txt, char2ind, eos=True, sos=True)
                       for txt in txts_splitted]
 
