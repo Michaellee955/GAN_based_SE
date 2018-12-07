@@ -7,7 +7,7 @@ import pickle
 
 import librosa
 import librosa.display
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 import numpy as np
 from python_speech_features import mfcc

@@ -20,7 +20,7 @@ import sr_model_utils
 # and loads the corresponding text to each audio file.
 from os.path import dirname, abspath
 parent_dir = dirname(abspath(__file__))
-
+print (parent_dir)
 
 def load_data(parent_dir):
     libri_path = parent_dir + '/data/LibriSpeech/dev-clean'
