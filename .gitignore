@@ -15,6 +15,7 @@ segan/segan_v1/train/*
 # data file
 segan/data
 Speech_Recognition_with_Tensorflow-master/data
+fsegan/data
 
 # model file
 segan/segan_v1.1/
