@@ -118,6 +118,7 @@ def audioToInputVector(audio_filename):
 
     # Whiten inputs (TODO: Should we whiten?)
     # Copy the strided array so that we can write to it safely
+    features = np.absolute(features)
     train_inputs = np.log(features)
     train_inputs = np.copy(train_inputs)
     train_inputs = (train_inputs - np.mean(train_inputs)) / np.std(train_inputs)
