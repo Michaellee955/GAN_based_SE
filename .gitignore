@@ -20,6 +20,7 @@ fsegan/data
 # model file
 segan/segan_v1.1/
 segan/models
+segan/model_1
 segan/segan_allbiased_preemph/
 Speech_Recognition_with_Tensorflow-master/models
 Speech_Recognition_with_Tensorflow-master/pickles
