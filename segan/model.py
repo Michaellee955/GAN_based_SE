@@ -411,7 +411,7 @@ class SEGAN(Model):
                     self.save(config.save_path, counter)
                     self.writer.add_summary(_g_sum, counter)
                     self.writer.add_summary(_d_sum, counter)
-                    fdict = {self.gtruth_noisy[0]: sample_noisy, self.zs[0]: sample_z}
+                    fdict = {self.gtruth_noisy[0]: sample_noisy}
                     canvas_w = self.sess.run(self.Gs[0], feed_dict=fdict)
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy
