@@ -14,7 +14,7 @@ class VBN(object):
         assert isinstance(epsilon, float)
 
         shape = x.get_shape().as_list()
-        assert len(shape) == 3, shape
+        assert len(shape) == 4, shape
         with tf.variable_scope(name) as scope:
             assert name.startswith("d_") or name.startswith("g_")
             self.epsilon = epsilon
@@ -29,7 +29,6 @@ class VBN(object):
             self.reference_output = out
 
     def __call__(self, x):
-
         shape = x.get_shape().as_list()
         with tf.variable_scope(self.name) as scope:
             new_coeff = 1. / (self.batch_size + 1.)
@@ -44,12 +43,10 @@ class VBN(object):
     def _normalize(self, x, mean, mean_sq, message):
         # make sure this is called with a variable scope
         shape = x.get_shape().as_list()
-        assert len(shape) == 3
-        self.gamma = tf.get_variable("gamma", [shape[-1]],
-                                initializer=tf.random_normal_initializer(1., 0.02))
+        assert len(shape) == 4
+        self.gamma = tf.get_variable("gamma", [shape[-1]], initializer=tf.random_normal_initializer(1., 0.02))
         gamma = tf.reshape(self.gamma, [1, 1, -1])
-        self.beta = tf.get_variable("beta", [shape[-1]],
-                                initializer=tf.constant_initializer(0.))
+        self.beta = tf.get_variable("beta", [shape[-1]], initializer=tf.constant_initializer(0.))
         beta = tf.reshape(self.beta, [1, 1, -1])
         assert self.epsilon is not None
         assert mean_sq is not None

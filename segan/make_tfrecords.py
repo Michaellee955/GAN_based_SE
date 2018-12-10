@@ -1,24 +1,23 @@
 from __future__ import print_function
-import tensorflow as tf
-import numpy as np
-from collections import namedtuple, OrderedDict
-from subprocess import call
-import scipy.io.wavfile as wavfile
+
 import argparse
-import codecs
-import timeit
-import struct
-import toml
-import re
-import sys
 import os
+import sys
+import timeit
+
+import numpy as np
+import scipy.io.wavfile as wavfile
+import tensorflow as tf
+import toml
 
 
 def _int64_feature(value):
-  return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
 
 def _bytes_feature(value):
-  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
 
 def slice_signal(signal, window_size, stride=0.5):
     """ Return windows of the given signal by sweeping in stride fractions
@@ -28,15 +27,14 @@ def slice_signal(signal, window_size, stride=0.5):
     n_samples = signal.shape[0]
     offset = int(window_size * stride)
     slices = []
-    for beg_i, end_i in zip(range(0, n_samples, offset),
-                            range(window_size, n_samples + offset,
-                                  offset)):
+    for beg_i, end_i in zip(range(0, n_samples, offset), range(window_size, n_samples + offset, offset)):
         if end_i - beg_i < window_size:
             break
         slice_ = signal[beg_i:end_i]
         if slice_.shape[0] == window_size:
             slices.append(slice_)
     return np.array(slices, dtype=np.int32)
+
 
 def read_and_slice(filename, wav_canvas_size, stride=0.5):
     fm, wav_data = wavfile.read(filename)
@@ -57,12 +55,12 @@ def encoder_proc(wav_filename, noisy_path, out_file, wav_canvas_size):
     assert wav_signals.shape == noisy_signals.shape, noisy_signals.shape
 
     for (wav, noisy) in zip(wav_signals, noisy_signals):
-        wav_raw = wav.tostring()
-        noisy_raw = noisy.tostring()
-        example = tf.train.Example(features=tf.train.Features(feature={
-            'wav_raw': _bytes_feature(wav_raw),
-            'noisy_raw': _bytes_feature(noisy_raw)}))
+        wav_raw = tf.compat.as_bytes(wav.tostring())
+        noisy_raw = tf.compat.as_bytes(noisy.tostring())
+        example = tf.train.Example(features=tf.train.Features(
+            feature={'wav_raw': _bytes_feature(wav_raw), 'noisy_raw': _bytes_feature(noisy_raw)}))
         out_file.write(example.SerializeToString())
+
 
 def main(opts):
     if not os.path.exists(opts.save_path):
@@ -89,19 +87,14 @@ def main(opts):
         beg_enc_t = timeit.default_timer()
         out_file = tf.python_io.TFRecordWriter(out_filepath)
         # process the acoustic and textual data now
-        for dset_i, (dset, dset_desc) in enumerate(cfg_desc.iteritems()):
+        for dset_i, (dset, dset_desc) in enumerate(cfg_desc.items()):
             print('-' * 50)
             wav_dir = dset_desc['clean']
-            wav_files = [os.path.join(wav_dir, wav) for wav in
-                           os.listdir(wav_dir) if wav.endswith('.wav')]
+            wav_files = [os.path.join(wav_dir, wav) for wav in os.listdir(wav_dir) if wav.endswith('.wav')]
             noisy_dir = dset_desc['noisy']
             nfiles = len(wav_files)
             for m, wav_file in enumerate(wav_files):
-                print('Processing wav file {}/{} {}{}'.format(m + 1,
-                                                              nfiles,
-                                                              wav_file,
-                                                              ' ' * 10),
-                      end='\r')
+                print('Processing wav file {}/{} {}{}'.format(m + 1, nfiles, wav_file, ' ' * 10), end='\r')
                 sys.stdout.flush()
                 encoder_proc(wav_file, noisy_dir, out_file, 2 ** 14)
         out_file.close()
@@ -110,18 +103,17 @@ def main(opts):
         print('*' * 50)
         print('Total processing and writing time: {} s'.format(end_enc_t))
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert the set of txt and '
                                                  'wavs to TFRecords')
     parser.add_argument('--cfg', type=str, default='cfg/e2e_maker.cfg',
                         help='File containing the description of datasets '
                              'to extract the info to make the TFRecords.')
-    parser.add_argument('--save_path', type=str, default='data/',
-                        help='Path to save the dataset')
-    parser.add_argument('--out_file', type=str, default='segan.tfrecords',
-                        help='Output filename')
+    parser.add_argument('--save_path', type=str, default='data/', help='Path to save the dataset')
+    parser.add_argument('--out_file', type=str, default='segan.tfrecords', help='Output filename')
     parser.add_argument('--force-gen', dest='force_gen', action='store_true',
                         help='Flag to force overwriting existing dataset.')
-    parser.set_defaults(force_gen=False)
+    parser.set_defaults(force_gen=True)
     opts = parser.parse_args()
     main(opts)
