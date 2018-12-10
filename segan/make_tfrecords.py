@@ -12,6 +12,8 @@ import toml
 import re
 import sys
 import os
+import librosa
+from python_speech_features import mfcc
 
 
 def _int64_feature(value):
@@ -24,7 +26,6 @@ def slice_signal(signal, window_size, stride=0.5):
     """ Return windows of the given signal by sweeping in stride fractions
         of window
     """
-    assert signal.ndim == 1, signal.ndim
     n_samples = signal.shape[0]
     offset = int(window_size * stride)
     slices = []
@@ -36,15 +37,30 @@ def slice_signal(signal, window_size, stride=0.5):
         slice_ = signal[beg_i:end_i]
         if slice_.shape[0] == window_size:
             slices.append(slice_)
-    return np.array(slices, dtype=np.int32)
+    return np.array(slices, dtype=np.float32)
 
 def read_and_slice(filename, wav_canvas_size, stride=0.5):
-    fm, wav_data = wavfile.read(filename)
-    if fm != 16000:
-        raise ValueError('Sampling rate is expected to be 16kHz!')
-    signals = slice_signal(wav_data, wav_canvas_size, stride)
-    return signals
 
+    audio, fs = librosa.load(filename)
+
+    features = mfcc(audio,
+        samplerate=fs,
+        winlen=0.032,
+        winstep=0.01,
+        numcep=128,
+        nfilt=128,
+        nfft=1024,
+        lowfreq=125,
+        highfreq=7500)
+
+    features = np.absolute(features) + 1e-3
+    features = np.log(features)
+    features = np.copy(features)
+    features = (features - np.mean(features)) / np.std(features)
+
+    signals = slice_signal(features, wav_canvas_size, stride)
+
+    return signals
 
 def encoder_proc(wav_filename, noisy_path, out_file, wav_canvas_size):
     """ Read and slice the wav and noisy files and write to TFRecords.
@@ -52,8 +68,13 @@ def encoder_proc(wav_filename, noisy_path, out_file, wav_canvas_size):
     """
     ppath, wav_fullname = os.path.split(wav_filename)
     noisy_filename = os.path.join(noisy_path, wav_fullname)
+
+    print(wav_fullname)
+    print(noisy_filename)
+
     wav_signals = read_and_slice(wav_filename, wav_canvas_size)
     noisy_signals = read_and_slice(noisy_filename, wav_canvas_size)
+
     assert wav_signals.shape == noisy_signals.shape, noisy_signals.shape
 
     for (wav, noisy) in zip(wav_signals, noisy_signals):
@@ -83,32 +104,21 @@ def main(opts):
     elif os.path.exists(out_filepath) and opts.force_gen:
         print('Will overwrite previously existing tfrecords')
         os.unlink(out_filepath)
-    with open(opts.cfg) as cfh:
-        # read the configuration description
-        cfg_desc = toml.loads(cfh.read())
-        beg_enc_t = timeit.default_timer()
-        out_file = tf.python_io.TFRecordWriter(out_filepath)
-        # process the acoustic and textual data now
-        for dset_i, (dset, dset_desc) in enumerate(cfg_desc.iteritems()):
-            print('-' * 50)
-            wav_dir = dset_desc['clean']
-            wav_files = [os.path.join(wav_dir, wav) for wav in
-                           os.listdir(wav_dir) if wav.endswith('.wav')]
-            noisy_dir = dset_desc['noisy']
-            nfiles = len(wav_files)
-            for m, wav_file in enumerate(wav_files):
-                print('Processing wav file {}/{} {}{}'.format(m + 1,
-                                                              nfiles,
-                                                              wav_file,
-                                                              ' ' * 10),
-                      end='\r')
-                sys.stdout.flush()
-                encoder_proc(wav_file, noisy_dir, out_file, 2 ** 14)
-        out_file.close()
-        end_enc_t = timeit.default_timer() - beg_enc_t
-        print('')
-        print('*' * 50)
-        print('Total processing and writing time: {} s'.format(end_enc_t))
+
+    wav_dir = 'data/clean_trainset_wav_16k/'
+    noisy_dir = 'data/noisy_trainset_wav_16k/'
+
+    wav_files = [os.path.join(wav_dir, wav) for wav in os.listdir(wav_dir) if wav.endswith('.wav')]
+    nfiles = len(wav_files)
+
+    out_file = tf.python_io.TFRecordWriter(out_filepath)
+    for m, wav_file in enumerate(wav_files):
+        print('Processing wav file {}/{} {}{}'.format(m + 1,
+                                                      nfiles,
+                                                      wav_file,
+                                                      ' ' * 10),)
+        encoder_proc(wav_file, noisy_dir, out_file, 128)
+    out_file.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert the set of txt and '
