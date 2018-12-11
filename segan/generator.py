@@ -228,7 +228,7 @@ class AEGenerator(object):
                 else:
                     if is_ref:
                         print('-- Dec: tanh activation --')
-                    h_i = tf.tanh(h_i)
+                    # h_i = tf.tanh(h_i)
 
             wave = h_i
             if is_ref and do_prelu:

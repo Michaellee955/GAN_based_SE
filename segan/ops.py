@@ -65,7 +65,7 @@ def minmax_denormalize(x, x_min, x_max, o_min=-1., o_max=1.):
     return minmax_normalize(x, o_min, o_max, x_min, x_max)
 
 
-def downconv(x, output_dim, kwidth=4, kheight=4, stride=2, init=None, uniform=False, bias_init=None, name='downconv'):
+def downconv(x, output_dim, kwidth=4, kheight=4, stride=2, init=None, padding='SAME',uniform=False, bias_init=None, name='downconv'):
     """ Downsampled convolution 2d """
     # x2d = tf.expand_dims(x, 1)
     x2d = x
@@ -74,7 +74,7 @@ def downconv(x, output_dim, kwidth=4, kheight=4, stride=2, init=None, uniform=Fa
         w_init = xavier_initializer(uniform=uniform)
     with tf.variable_scope(name):
         W = tf.get_variable('W', [kwidth, kheight, x.get_shape()[-1], output_dim], initializer=w_init)
-        conv = tf.nn.conv2d(x2d, W, strides=[1, stride, stride, 1], padding='SAME')
+        conv = tf.nn.conv2d(x2d, W, strides=[1, stride, stride, 1], padding=padding)
         if bias_init is not None:
             b = tf.get_variable('b', [output_dim], initializer=bias_init)
             conv = tf.reshape(tf.nn.bias_add(conv, b), conv.get_shape())
