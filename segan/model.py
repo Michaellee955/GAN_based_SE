@@ -96,7 +96,7 @@ class SEGAN(Model):
         self.g_enc_depths = [16, 32, 32, 64, 64, 128, 256]
         # Define D fmaps
         #self.d_num_fmaps = [16, 32, 32, 64, 64, 128, 128, 256, 256, 512, 1024]
-        self.d_num_fmaps = [16, 32, 32, 64, 64, 128, 256]
+        self.d_num_fmaps = [16, 32, 32, 64]
         self.init_noise_std = args.init_noise_std
         self.disc_noise_std = tf.Variable(self.init_noise_std, trainable=False)
         self.disc_noise_std_summ = scalar_summary('disc_noise_std', self.disc_noise_std)
@@ -176,7 +176,8 @@ class SEGAN(Model):
             print('num of G returned: ', len(ref_Gs))
             self.reference_G = ref_Gs[0]
             if self.is_ref:
-                self.ref_z = ref_Gs[1]
+                pass
+                # self.ref_z = ref_Gs[1]
             if self.is_ref and do_prelu:
                 self.ref_alpha = ref_Gs[2:]
                 self.alpha_summ = []
@@ -222,11 +223,12 @@ class SEGAN(Model):
             # self.d_nfk_losses = []
             self.d_losses = []
 
-        d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, 1.))
-        d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, 0.))
+        ones = tf.constant(1,dtype=tf.float32,shape=(100,8))
+        zeros = tf.constant(0,dtype=tf.float32,shape=(100,8))
+        d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, ones))
+        d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, zeros))
         # d_nfk_loss = tf.reduce_mean(tf.squared_difference(d_nfk_logits, 0.))
-        g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, 1.))
-
+        g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, ones))
         d_loss = d_rl_loss + d_fk_loss
 
         # Add the L1 loss to G
