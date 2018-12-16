@@ -418,7 +418,7 @@ class SEGAN(Model):
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy
                     for m in range(min(20, canvas_w.shape[0])):
-                        print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
+                        # print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
                         # wavfile.write(os.path.join(save_path, 'sample_{}-'
                         #                                       '{}.wav'.format(counter, m)), int(16e3),
                         #               de_emph(canvas_w[m], self.preemph))
@@ -704,7 +704,7 @@ class SEAE(Model):
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy
                     for m in range(min(20, canvas_w.shape[0])):
-                        print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
+                        # print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
                         wavfile.write(os.path.join(save_path, 'sample_{}-{}.wav'.format(counter, m)), int(16e3), canvas_w[m])
                         if not os.path.exists(os.path.join(save_path, 'gtruth_{}.wav'.format(m))):
                             wavfile.write(os.path.join(save_path, 'gtruth_{}.wav'.format(m)), int(16e3), swaves[m])
