@@ -13,6 +13,9 @@ d = dirname(dirname(abspath(__file__)))
 sys.path.append(d)
 from segan.data_loader import pre_emph
 from segan.model import SEGAN, SEAE
+import librosa
+from python_speech_features import mfcc
+import pickle
 
 devices = device_lib.list_local_devices()
 
@@ -21,7 +24,7 @@ flags.DEFINE_integer("seed", 111, "Random seed (Def: 111).")
 flags.DEFINE_integer("epoch", 150, "Epochs to train (Def: 150).")
 flags.DEFINE_integer("batch_size", 100, "Batch size (Def: 100).")
 flags.DEFINE_integer("save_freq", 50, "Batch save freq (Def: 50).")
-flags.DEFINE_integer("canvas_size", 128, "Canvas size (Def: 128).")
+flags.DEFINE_integer("canvas_size", 64, "Canvas size (Def: 128).")
 flags.DEFINE_integer("denoise_epoch", 5, "Epoch where noise in disc is "
                                          "removed (Def: 5).")
 flags.DEFINE_integer("l1_remove_epoch", 150, "Epoch where L1 in G is "
@@ -104,11 +107,12 @@ def main(_):
                 raise ValueError('weights must be specified!')
             print('Loading models weights...')
             se_model.load(FLAGS.save_path, FLAGS.weights)
-            fm, wav_data = wavfile.read(FLAGS.test_wav)
-            wavname = FLAGS.test_wav.split('/')[-1]
-            if fm != 16000:
-                raise ValueError('16kHz required! Test file is different')
-            wave = (2. / 65535.) * (wav_data.astype(np.float32) - 32767) + 1.
+            # fm, wav_data = wavfile.read(FLAGS.test_wav)
+            wavname = FLAGS.test_wav.split('/')[-1].split('.')[0] + '.pkl'
+            # if fm != 16000:
+            #     raise ValueError('16kHz required! Test file is different')
+            # wave = (2. / 65535.) * (wav_data.astype(np.float32) - 32767) + 1.
+            wave = read_and_slice(FLAGS.test_wav, FLAGS.save_clean_path)
             if FLAGS.preemph > 0:
                 print('preemph test wave with {}'.format(FLAGS.preemph))
                 x_pholder, preemph_op = pre_emph_test(FLAGS.preemph, wave.shape[0])
@@ -117,10 +121,42 @@ def main(_):
             print('test wave min:{}  max:{}'.format(np.min(wave), np.max(wave)))
             c_wave = se_model.clean(wave)
             print('c wave min:{}  max:{}'.format(np.min(c_wave), np.max(c_wave)))
-            wavfile.write(os.path.join(FLAGS.save_clean_path, wavname), int(16e3), c_wave)
+            # wavfile.write(os.path.join(FLAGS.save_clean_path, wavname), int(16e3), c_wave)
+            write_pkl(os.path.join(FLAGS.save_clean_path, wavname), c_wave)
             print('Done cleaning {} and saved '
                   'to {}'.format(FLAGS.test_wav, os.path.join(FLAGS.save_clean_path, wavname)))
 
+def read_and_slice(filename, backup_path):
+
+    audio, fs = librosa.load(filename)
+
+    features = mfcc(audio,
+        samplerate=fs,
+        winlen=0.032,
+        winstep=0.01,
+        numcep=64,
+        nfilt=64,
+        nfft=1024,
+        lowfreq=125,
+        highfreq=7500)
+
+    # feature_backup = np.where(features >= 0, 1, -1)
+    # write_pkl(os.path.join(backup_path, 'feature_backup.pkl'), feature_backup)
+    # features = np.absolute(features) + 1e-3
+    # features = np.log(features)
+    features = np.copy(features)
+    print('Mean:', np.mean(features))
+    print('STD:', np.std(features))
+    features = (features - np.mean(features)) / np.std(features)
+
+    return features
+
+def write_pkl(path, data):
+    """
+    Writes the given data to .pkl file.
+    """
+    with open(path, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 if __name__ == '__main__':
     tf.app.run()

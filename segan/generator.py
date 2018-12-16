@@ -122,7 +122,6 @@ class AEGenerator(object):
             raise ValueError('Generator input must be 2-D or 3-D')
         kwidth = 4
         kheight = 4
-        enc_layers = 7
         skips = []
         if is_ref and do_prelu:
             # keep track of prelu activations

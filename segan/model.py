@@ -10,7 +10,7 @@ from segan.data_loader import read_and_decode, de_emph
 from segan.discriminator import *
 from segan.generator import *
 from segan.ops import *
-
+import pickle
 
 class Model(object):
 
@@ -93,10 +93,10 @@ class SEGAN(Model):
         self.g_dilated_blocks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
         # num fmaps for AutoEncoder SEGAN (v1)
         #self.g_enc_depths = [16, 32, 32, 64, 64, 128, 128, 256, 256, 512, 1024]
-        self.g_enc_depths = [16, 32, 32, 64, 64, 128, 256]
+        self.g_enc_depths = [16, 32, 32, 64, 64, 128]
         # Define D fmaps
         #self.d_num_fmaps = [16, 32, 32, 64, 64, 128, 128, 256, 256, 512, 1024]
-        self.d_num_fmaps = [16, 32, 32, 64]
+        self.d_num_fmaps = [16, 32, 64]
         self.init_noise_std = args.init_noise_std
         self.disc_noise_std = tf.Variable(self.init_noise_std, trainable=False)
         self.disc_noise_std_summ = scalar_summary('disc_noise_std', self.disc_noise_std)
@@ -120,7 +120,7 @@ class SEGAN(Model):
     def build_model(self, config):
         all_d_grads = []
         all_g_grads = []
-        # TODO L1 regularization
+
         d_opt = tf.train.RMSPropOptimizer(config.d_learning_rate)
         g_opt = tf.train.RMSPropOptimizer(config.g_learning_rate)
         # d_opt = tf.train.AdamOptimizer(config.d_learning_rate,
@@ -418,21 +418,28 @@ class SEGAN(Model):
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy
                     for m in range(min(20, canvas_w.shape[0])):
-                        # print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
+                        print('w{} max: {} min: {}'.format(m, np.max(canvas_w[m]), np.min(canvas_w[m])))
                         # wavfile.write(os.path.join(save_path, 'sample_{}-'
                         #                                       '{}.wav'.format(counter, m)), int(16e3),
                         #               de_emph(canvas_w[m], self.preemph))
-                        # m_gtruth_path = os.path.join(save_path, 'gtruth_{}.'
-                        #                                         'wav'.format(m))
-                        # if not os.path.exists(m_gtruth_path):
-                        #     wavfile.write(os.path.join(save_path, 'gtruth_{}.'
-                        #                                           'wav'.format(m)), int(16e3),
-                        #                   de_emph(swaves[m], self.preemph))
-                        #     wavfile.write(os.path.join(save_path, 'noisy_{}.'
-                        #                                           'wav'.format(m)), int(16e3),
-                        #                   de_emph(sample_noisy[m], self.preemph))
-                        #     wavfile.write(os.path.join(save_path, 'dif_{}.wav'.format(m)), int(16e3),
-                        #                   de_emph(sample_dif[m], self.preemph))
+                        write_pkl(os.path.join(save_path, 'sample_{}-'
+                                                          '{}.wav'.format(counter, m)), canvas_w[m])
+                        m_gtruth_path = os.path.join(save_path, 'gtruth_{}.'
+                                                                'wav'.format(m))
+                        if not os.path.exists(m_gtruth_path):
+                            # wavfile.write(os.path.join(save_path, 'gtruth_{}.'
+                            #                                       'wav'.format(m)), int(16e3),
+                            #               de_emph(swaves[m], self.preemph))
+                            write_pkl(os.path.join(save_path, 'gtruth_{}.'
+                                                              'wav'.format(m)), swaves[m])
+                            # wavfile.write(os.path.join(save_path, 'noisy_{}.'
+                            #                                       'wav'.format(m)), int(16e3),
+                            #               de_emph(sample_noisy[m], self.preemph))
+                            write_pkl(os.path.join(save_path, 'noisy_{}.'
+                                                              'wav'.format(m)), sample_noisy[m])
+                            # wavfile.write(os.path.join(save_path, 'dif_{}.wav'.format(m)), int(16e3),
+                            #               de_emph(sample_dif[m], self.preemph))
+                            write_pkl(os.path.join(save_path, 'dif_{}.wav'.format(m)), sample_dif[m])
                         np.savetxt(os.path.join(save_path, 'd_rl_losses.txt'), d_rl_losses)
                         np.savetxt(os.path.join(save_path, 'd_fk_losses.txt'), d_fk_losses)
                         np.savetxt(os.path.join(save_path, 'g_adv_losses.txt'), g_adv_losses)
@@ -493,15 +500,16 @@ class SEGAN(Model):
             else:
                 length = self.canvas_size
                 pad = 0
-            x_ = np.zeros((self.batch_size, self.canvas_size))
+            x_ = np.zeros((self.batch_size, self.canvas_size, self.canvas_size))
             if pad > 0:
-                x_[0] = np.concatenate((x[beg_i:beg_i + length], np.zeros(pad)))
+                x_[0] = np.concatenate((x[beg_i:beg_i + length],
+                                        np.zeros((pad, self.canvas_size))))
             else:
                 x_[0] = x[beg_i:beg_i + length]
             print('Cleaning chunk {} -> {}'.format(beg_i, beg_i + length))
             fdict = {self.gtruth_noisy[0]: x_}
             canvas_w = self.sess.run(self.Gs[0], feed_dict=fdict)[0]
-            canvas_w = canvas_w.reshape((self.canvas_size))
+            # canvas_w = canvas_w.reshape((self.canvas_size))
             print('canvas w shape: ', canvas_w.shape)
             if pad > 0:
                 print('Removing padding of {} samples'.format(pad))
@@ -512,7 +520,7 @@ class SEGAN(Model):
             else:
                 c_res = np.concatenate((c_res, canvas_w))
         # deemphasize
-        c_res = de_emph(c_res, self.preemph)
+        # c_res = de_emph(c_res, self.preemph)
         return c_res
 
 
@@ -721,3 +729,10 @@ class SEAE(Model):
         finally:
             coord.request_stop()
         coord.join(threads)
+
+def write_pkl(path, data):
+    """
+    Writes the given data to .pkl file.
+    """
+    with open(path, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
