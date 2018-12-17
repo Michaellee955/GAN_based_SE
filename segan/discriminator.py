@@ -62,17 +62,26 @@ def discriminator(self, wave_in, reuse=False):
         if not reuse:
             print('*** Discriminator summary ***')
         for block_idx, fmaps in enumerate(self.d_num_fmaps):
-            hi = disc_block(block_idx, hi, 4, 4, self.d_num_fmaps[block_idx], True, 'leakyrelu')
+            hi = disc_block(block_idx, hi, 4, 4, self.d_num_fmaps[block_idx], False, 'leakyrelu')
             if not reuse:
                 print()
         if not reuse:
             print('discriminator deconved shape: ', hi.get_shape())
-        hi = flatten(hi)
+        #hi = flatten(hi)
         # hi_f = tf.nn.dropout(hi_f, self.keep_prob_var)
         #d_logit_out = conv1d(hi, kwidth=1, num_kernels=1, init=tf.truncated_normal_initializer(stddev=0.02),
         #                     name='logits_conv')
         #d_logit_out = tf.squeeze(d_logit_out)
-        d_logit_out = fully_connected(hi, 8, activation_fn=tf.nn.sigmoid)
+        #d_logit_out = fully_connected(hi, 8, activation_fn=tf.nn.sigmoid)
+        if self.bias_D_conv:
+            if not reuse:
+                print('biasing D conv', end=' *** ')
+            bias_init = tf.constant_initializer(0.)
+        downconv_init = tf.truncated_normal_initializer(stddev=0.02)
+        
+        d_logit_out = downconv(hi, 1, kwidth=1, kheight=8, stride=1,padding='VALID',init=downconv_init, bias_init=bias_init)
+        d_logit_out = tf.squeeze(d_logit_out)
+
         if not reuse:
             print('discriminator output shape: ', d_logit_out.get_shape())
             print('*****************************')

@@ -41,8 +41,8 @@ class Generator(object):
         elif len(in_dims) < 2 or len(in_dims) > 3:
             raise ValueError('Generator input must be 2-D or 3-D')
         kwidth = 3
-        z = make_z([segan.batch_size, h_i.get_shape().as_list()[1], segan.g_enc_depths[-1]])
-        h_i = tf.concat(2, [h_i, z])
+        z = make_z([segan.batch_size, h_i.get_shape().as_list()[1], h_i.get_shape().as_list()[2], segan.g_enc_depths[-1]])
+        h_i = tf.concat(3, [h_i, z])
         skip_out = True
         skips = []
         for block_idx, dilation in enumerate(segan.g_dilated_blocks):
@@ -122,7 +122,6 @@ class AEGenerator(object):
             raise ValueError('Generator input must be 2-D or 3-D')
         kwidth = 4
         kheight = 4
-        enc_layers = 7
         skips = []
         if is_ref and do_prelu:
             # keep track of prelu activations
@@ -169,7 +168,7 @@ class AEGenerator(object):
                 # random code is fused with intermediate representation
                 z = make_z([segan.batch_size, h_i.get_shape().as_list()[1], h_i.get_shape().as_list()[2],
                             segan.g_enc_depths[-1]])
-                h_i = tf.concat(2, [z, h_i])
+                h_i = tf.concat(3, [z, h_i])
 
             # SECOND DECODER (reverse order)
             g_dec_depths = segan.g_enc_depths[:-1][::-1] + [1]
@@ -229,7 +228,7 @@ class AEGenerator(object):
                 else:
                     if is_ref:
                         print('-- Dec: tanh activation --')
-                    h_i = tf.tanh(h_i)
+                    # h_i = tf.tanh(h_i)
 
             wave = h_i
             if is_ref and do_prelu:

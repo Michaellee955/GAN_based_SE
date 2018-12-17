@@ -47,14 +47,14 @@ def read_and_slice(filename, wav_canvas_size, stride=0.5):
         samplerate=fs,
         winlen=0.032,
         winstep=0.01,
-        numcep=64,
-        nfilt=64,
+        numcep=128,
+        nfilt=128,
         nfft=1024,
         lowfreq=125,
         highfreq=7500)
 
-    # features = np.absolute(features) + 1e-3
-    # features = np.log(features)
+    features = np.absolute(features) + 1e-3
+    features = np.log(features)
     features = np.copy(features)
     features = (features - np.mean(features)) / np.std(features)
 
@@ -69,8 +69,8 @@ def encoder_proc(wav_filename, noisy_path, out_file, wav_canvas_size):
     ppath, wav_fullname = os.path.split(wav_filename)
     noisy_filename = os.path.join(noisy_path, wav_fullname)
 
-    # print(wav_fullname)
-    # print(noisy_filename)
+    print(wav_fullname)
+    print(noisy_filename)
 
     wav_signals = read_and_slice(wav_filename, wav_canvas_size)
     noisy_signals = read_and_slice(noisy_filename, wav_canvas_size)
@@ -116,9 +116,8 @@ def main(opts):
         print('Processing wav file {}/{} {}{}'.format(m + 1,
                                                       nfiles,
                                                       wav_file,
-                                                      ' ' * 10), end='\r')
-        sys.stdout.flush()
-        encoder_proc(wav_file, noisy_dir, out_file, 64)
+                                                      ' ' * 10),)
+        encoder_proc(wav_file, noisy_dir, out_file, 128)
     out_file.close()
 
 if __name__ == '__main__':
