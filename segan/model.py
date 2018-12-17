@@ -77,7 +77,7 @@ class SEGAN(Model):
         self.save_path = args.save_path
         # num of updates to be applied to D before G
         # this is k in original GAN paper (https://arxiv.org/abs/1406.2661)
-        self.disc_updates = 1
+        self.disc_updates = 3
         # set preemph factor
         self.preemph = args.preemph
         self.is_ref = True
