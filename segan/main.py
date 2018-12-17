@@ -34,7 +34,7 @@ flags.DEFINE_float("denoise_lbound", 0.01, "Min noise std to be still alive (Def
 flags.DEFINE_float("noise_decay", 0.7, "Decay rate of noise std (Def: 0.7)")
 flags.DEFINE_float("d_label_smooth", 0.25, "Smooth factor in D (Def: 0.25)")
 flags.DEFINE_float("init_noise_std", 0.5, "Init noise std (Def: 0.5)")
-flags.DEFINE_float("init_l1_weight", 100., "Init L1 lambda (Def: 100)")
+flags.DEFINE_float("init_l1_weight", 3., "Init L1 lambda (Def: 100)")
 flags.DEFINE_integer("z_dim", 256, "Dimension of input noise to G (Def: 256).")
 flags.DEFINE_integer("z_depth", 256, "Depth of input noise to G (Def: 256).")
 flags.DEFINE_string("save_path", "segan_results", "Path to save out models "

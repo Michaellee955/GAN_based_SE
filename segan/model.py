@@ -172,7 +172,7 @@ class SEGAN(Model):
             # self.sample_wavs = tf.placeholder(tf.float32, [self.batch_size,
             #                                               self.canvas_size],
             #                                  name='sample_wavs')
-            ref_Gs = self.generator(noisybatch, is_ref=True, spk=None, z_on=False, do_prelu=do_prelu)
+            ref_Gs = self.generator(noisybatch, is_ref=True, spk=None, z_on=True, do_prelu=do_prelu)
             print('num of G returned: ', len(ref_Gs))
             self.reference_G = ref_Gs[0]
             if self.is_ref:
@@ -189,9 +189,9 @@ class SEGAN(Model):
             dummy_joint = tf.concat(3, [wavbatch, noisybatch])
             dummy = discriminator(self, dummy_joint, reuse=False)
 
-        G = self.generator(noisybatch, is_ref=False, spk=None, z_on=False, do_prelu=do_prelu)[0]
+        G, z = self.generator(noisybatch, is_ref=False, spk=None, z_on=True, do_prelu=do_prelu)
         self.Gs.append(G)
-        # self.zs.append(z)
+        self.zs.append(z)
 
         # add new dimension to merge with other pairs
         D_rl_joint = tf.concat(3, [wavbatch, noisybatch])
@@ -222,10 +222,12 @@ class SEGAN(Model):
             # self.d_nfk_losses = []
             self.d_losses = []
 
-        d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, 1.))
-        d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, 0.))
+        ones = tf.constant(1,dtype=tf.float32,shape=(100,8))
+        zeros = tf.constant(0,dtype=tf.float32,shape=(100,8))
+        d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, ones))
+        d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, zeros))
         # d_nfk_loss = tf.reduce_mean(tf.squared_difference(d_nfk_logits, 0.))
-        g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, 1.))
+        g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, ones))
 
         d_loss = d_rl_loss + d_fk_loss
 
@@ -339,10 +341,11 @@ class SEGAN(Model):
         # we store samples to disk for hearing
         # pick a single batch
 
-        sample_noisy, sample_wav = self.sess.run([self.gtruth_noisy[0], self.gtruth_wavs[0]])
+        sample_noisy, sample_wav, sample_z = self.sess.run([self.gtruth_noisy[0], self.gtruth_wavs[0],
+                                                            self.zs[0]])
         print('sample noisy shape: ', sample_noisy.shape)
         print('sample wav shape: ', sample_wav.shape)
-        # print('sample z shape: ', sample_z.shape)
+        print('sample z shape: ', sample_z.shape)
 
         save_path = config.save_path
         counter = 0
@@ -373,25 +376,29 @@ class SEGAN(Model):
                 start = timeit.default_timer()
                 if counter % config.save_freq == 0:
                     for d_iter in range(self.disc_updates):
-                        _d_opt, _d_sum, d_fk_loss, d_rl_loss = self.sess.run(
-                            [d_opt, self.d_sum, self.d_fk_losses[0],  # self.d_nfk_losses[0],
-                             self.d_rl_losses[0]])
-                        if self.d_clip_weights:
-                            self.sess.run(self.d_clip)  # d_nfk_loss, \
+                        _g_opt, _g_sum, g_adv_loss, g_l1_loss = self.sess.run(
+                            [g_opt, self.g_sum, self.g_adv_losses[0], self.g_l1_losses[0]])
 
                     # now G iterations
-                    _g_opt, _g_sum, g_adv_loss, g_l1_loss = self.sess.run(
-                        [g_opt, self.g_sum, self.g_adv_losses[0], self.g_l1_losses[0]])
+                    _d_opt, _d_sum, d_fk_loss, d_rl_loss = self.sess.run(
+                        [d_opt, self.d_sum, self.d_fk_losses[0],  # self.d_nfk_losses[0],
+                         self.d_rl_losses[0]])
+                    if self.d_clip_weights:
+                        self.sess.run(self.d_clip)  # d_nfk_loss, \
+
                 else:
                     for d_iter in range(self.disc_updates):
-                        _d_opt, d_fk_loss, d_rl_loss = self.sess.run(
-                            [d_opt, self.d_fk_losses[0],  # self.d_nfk_losses[0],
-                             self.d_rl_losses[0]])
-                        # d_nfk_loss, \
-                        if self.d_clip_weights:
-                            self.sess.run(self.d_clip)
+                        _g_opt, g_adv_loss, g_l1_loss = self.sess.run(
+                            [g_opt, self.g_adv_losses[0], self.g_l1_losses[0]])
 
-                    _g_opt, g_adv_loss, g_l1_loss = self.sess.run([g_opt, self.g_adv_losses[0], self.g_l1_losses[0]])
+                    _d_opt, d_fk_loss, d_rl_loss = self.sess.run(
+                        [d_opt, self.d_fk_losses[0],  # self.d_nfk_losses[0],
+                         self.d_rl_losses[0]])
+                    # d_nfk_loss, \
+                    if self.d_clip_weights:
+                        self.sess.run(self.d_clip)
+
+
                 end = timeit.default_timer()
                 batch_timings.append(end - start)
                 d_fk_losses.append(d_fk_loss)
@@ -411,7 +418,8 @@ class SEGAN(Model):
                     self.save(config.save_path, counter)
                     self.writer.add_summary(_g_sum, counter)
                     self.writer.add_summary(_d_sum, counter)
-                    fdict = {self.gtruth_noisy[0]: sample_noisy}
+                    fdict = {self.gtruth_noisy[0]: sample_noisy,
+                             self.zs[0]:sample_z}
                     canvas_w = self.sess.run(self.Gs[0], feed_dict=fdict)
                     swaves = sample_wav
                     sample_dif = sample_wav - sample_noisy

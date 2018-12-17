@@ -58,7 +58,7 @@ def discriminator(self, wave_in, reuse=False):
 
         beg_size = self.canvas_size
         # apply input noisy layer to real and fake samples
-        # hi = gaussian_noise_layer(hi, self.disc_noise_std)
+        hi = gaussian_noise_layer(hi, self.disc_noise_std)
         if not reuse:
             print('*** Discriminator summary ***')
         for block_idx, fmaps in enumerate(self.d_num_fmaps):

@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer
+from tensorflow.python.ops import image_ops
 
 
 def gaussian_noise_layer(input_layer, std):
@@ -255,20 +256,16 @@ def deconv(x, output_shape, kwidth=4, kheight=4, dilation=2, init=None, uniform=
     # reshape the tensor to use 2d operators
     # x2d = tf.expand_dims(x, 1)
     x2d = x
-    # TODO ??? SAME ISSUE AS ABOVE
     o2d = output_shape[:3] + [output_shape[-1]]
+    print(o2d)
     w_init = init
     if w_init is None:
         w_init = xavier_initializer(uniform=uniform)
     with tf.variable_scope(name):
         # filter shape: [kwidth, output_channels, in_channels]
-        W = tf.get_variable('W', [kwidth, kheight, out_channels, in_channels], initializer=w_init)
-        try:
-            deconv = tf.nn.conv2d_transpose(x2d, W, output_shape=o2d, strides=[1, dilation, dilation, 1])
-        except AttributeError:
-            # support for versions of TF before 0.7.0
-            # based on https://github.com/carpedm20/DCGAN-tensorflow
-            deconv = tf.nn.deconv2d(x2d, W, output_shape=o2d, strides=[1, dilation, dilation, 1])
+        W = tf.get_variable('W', [kwidth, kheight, in_channels, out_channels], initializer=w_init)
+        x2d = tf.image.resize_images(x2d, o2d[1:3], method=image_ops.ResizeMethod.NEAREST_NEIGHBOR)
+        deconv = tf.nn.conv2d(x2d, W, strides=[1, 1, 1, 1], padding='SAME')
         if bias_init is not None:
             b = tf.get_variable('b', [out_channels], initializer=tf.constant_initializer(0.))
             deconv = tf.reshape(tf.nn.bias_add(deconv, b), deconv.get_shape())

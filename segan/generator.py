@@ -87,7 +87,7 @@ class AEGenerator(object):
     def __init__(self, segan):
         self.segan = segan
 
-    def __call__(self, noisy_w, is_ref, spk=None, z_on=False, do_prelu=False):
+    def __call__(self, noisy_w, is_ref, spk=None, z_on=True, do_prelu=True):
         # TODO: remove c_vec
         """ Build the graph propagating (noisy_w) --> x
         On first pass will make variables.
@@ -167,7 +167,8 @@ class AEGenerator(object):
 
             if z_on:
                 # random code is fused with intermediate representation
-                z = make_z([segan.batch_size, h_i.get_shape().as_list()[1], segan.g_enc_depths[-1]])
+                z = make_z([segan.batch_size, h_i.get_shape().as_list()[1], h_i.get_shape().as_list()[2],
+                            segan.g_enc_depths[-1]])
                 h_i = tf.concat(2, [z, h_i])
 
             # SECOND DECODER (reverse order)
