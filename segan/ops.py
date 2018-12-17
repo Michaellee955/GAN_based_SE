@@ -257,7 +257,7 @@ def deconv(x, output_shape, kwidth=4, kheight=4, dilation=2, init=None, uniform=
     # x2d = tf.expand_dims(x, 1)
     x2d = x
     o2d = output_shape[:3] + [output_shape[-1]]
-    print(o2d)
+    # print(o2d)
     w_init = init
     if w_init is None:
         w_init = xavier_initializer(uniform=uniform)

@@ -62,7 +62,7 @@ def discriminator(self, wave_in, reuse=False):
         if not reuse:
             print('*** Discriminator summary ***')
         for block_idx, fmaps in enumerate(self.d_num_fmaps):
-            hi = disc_block(block_idx, hi, 4, 4, self.d_num_fmaps[block_idx], False, 'leakyrelu')
+            hi = disc_block(block_idx, hi, 4, 4, self.d_num_fmaps[block_idx], True, 'leakyrelu')
             if not reuse:
                 print()
         if not reuse:
