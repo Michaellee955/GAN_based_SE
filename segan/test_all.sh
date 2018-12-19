@@ -15,5 +15,5 @@ FILES=$NOISY_PATH/*.wav
 
 for f in $FILES 
 do 
-  clean_wav.sh $f $ENHANCED_PATH
+  bash clean_wav.sh $f $ENHANCED_PATH
 done

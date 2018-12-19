@@ -76,7 +76,7 @@ def discriminator(self, wave_in, reuse=False):
         if self.bias_D_conv:
             if not reuse:
                 print('biasing D conv', end=' *** ')
-            bias_init = tf.constant_initializer(0.)
+            bias_init = tf.constant_initializer(0.5)
         downconv_init = tf.truncated_normal_initializer(stddev=0.02)
         
         d_logit_out = downconv(hi, 1, kwidth=1, kheight=8, stride=1,padding='VALID',init=downconv_init, bias_init=bias_init)

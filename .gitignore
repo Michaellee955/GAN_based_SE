@@ -11,7 +11,8 @@ __pycache__/
 
 # processing files
 segan/segan_v1/train/*
-
+segan/segan_v2
+segan/test
 # data file
 segan/data
 Speech_Recognition_with_Tensorflow-master/data

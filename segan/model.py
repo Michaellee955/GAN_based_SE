@@ -224,10 +224,14 @@ class SEGAN(Model):
 
         ones = tf.constant(1,dtype=tf.float32,shape=(100,8))
         zeros = tf.constant(0,dtype=tf.float32,shape=(100,8))
-        d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, ones))
-        d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, zeros))
+        #d_rl_loss = tf.reduce_mean(tf.squared_difference(d_rl_logits, ones))
+        #d_fk_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, zeros))
         # d_nfk_loss = tf.reduce_mean(tf.squared_difference(d_nfk_logits, 0.))
-        g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, ones))
+        #g_adv_loss = tf.reduce_mean(tf.squared_difference(d_fk_logits, ones))
+
+        d_rl_loss = tf.reduce_mean(tf.abs(tf.sub(d_rl_logits, ones)))
+        d_fk_loss = tf.reduce_mean(tf.abs(tf.sub(d_fk_logits, zeros)))
+        g_adv_loss = tf.reduce_mean(tf.abs(tf.sub(d_fk_logits, ones)))
 
         d_loss = d_rl_loss + d_fk_loss
 
@@ -372,6 +376,8 @@ class SEGAN(Model):
         g_adv_losses = []
         g_l1_losses = []
         try:
+            d_fk_loss = 1.
+            d_rl_loss = 1.
             while not coord.should_stop():
                 start = timeit.default_timer()
                 if counter % config.save_freq == 0:
@@ -380,23 +386,25 @@ class SEGAN(Model):
                             [g_opt, self.g_sum, self.g_adv_losses[0], self.g_l1_losses[0]])
 
                     # now G iterations
-                    _d_opt, _d_sum, d_fk_loss, d_rl_loss = self.sess.run(
-                        [d_opt, self.d_sum, self.d_fk_losses[0],  # self.d_nfk_losses[0],
-                         self.d_rl_losses[0]])
-                    if self.d_clip_weights:
-                        self.sess.run(self.d_clip)  # d_nfk_loss, \
+                    if True: # d_fk_loss>=0.1 or d_rl_loss>=0.1:
+                        _d_opt, _d_sum, d_fk_loss, d_rl_loss = self.sess.run(
+                            [d_opt, self.d_sum, self.d_fk_losses[0],  # self.d_nfk_losses[0],
+                             self.d_rl_losses[0]])
+                        if self.d_clip_weights:
+                            self.sess.run(self.d_clip)  # d_nfk_loss, \
 
                 else:
                     for d_iter in range(self.disc_updates):
                         _g_opt, g_adv_loss, g_l1_loss = self.sess.run(
                             [g_opt, self.g_adv_losses[0], self.g_l1_losses[0]])
-
-                    _d_opt, d_fk_loss, d_rl_loss = self.sess.run(
-                        [d_opt, self.d_fk_losses[0],  # self.d_nfk_losses[0],
-                         self.d_rl_losses[0]])
-                    # d_nfk_loss, \
-                    if self.d_clip_weights:
-                        self.sess.run(self.d_clip)
+                    # print(self.d_fk_losses[0])
+                    if True: # d_rl_loss>=0.1 or d_fk_loss>=0.1:
+                        _d_opt, d_fk_loss, d_rl_loss = self.sess.run(
+                            [d_opt, self.d_fk_losses[0],  # self.d_nfk_losses[0],
+                             self.d_rl_losses[0]])
+                        # d_nfk_loss, \
+                        if self.d_clip_weights:
+                            self.sess.run(self.d_clip)
 
 
                 end = timeit.default_timer()
