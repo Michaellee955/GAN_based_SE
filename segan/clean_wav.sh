@@ -19,8 +19,8 @@ echo "INPUT NOISY WAV: $NOISY_WAVNAME"
 echo "SAVE PATH: $SAVE_PATH"
 mkdir -p $SAVE_PATH
 
-python main.py --init_noise_std 0. --save_path segan_v1.1 \
-               --batch_size 100 --g_nl leaky --weights SEGAN-41700 \
+python main.py --init_noise_std 0. --save_path segan_v2 \
+               --batch_size 100 --g_nl prelu --weights SEGAN-75336 \
                --preemph 0. --bias_deconv True \
                --bias_downconv True --bias_D_conv True \
-               --test_wav $NOISY_WAVENAME --save_clean_path $SAVE_PATH
+               --test_wav $NOISY_WAVNAME --save_clean_path $SAVE_PATH

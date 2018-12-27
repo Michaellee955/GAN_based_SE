@@ -105,8 +105,8 @@ def main(opts):
         print('Will overwrite previously existing tfrecords')
         os.unlink(out_filepath)
 
-    wav_dir = 'data/clean_trainset_wav_16k/'
-    noisy_dir = 'data/noisy_trainset_wav_16k/'
+    wav_dir = 'data/clean_trainset_28spk_wav/'
+    noisy_dir = 'data/noisy_trainset_28spk_wav/'
 
     wav_files = [os.path.join(wav_dir, wav) for wav in os.listdir(wav_dir) if wav.endswith('.wav')]
     nfiles = len(wav_files)
