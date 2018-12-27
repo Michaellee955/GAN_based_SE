@@ -5,6 +5,10 @@ __pycache__/
 
 # wav files
 *.wav
+segan/segan_v2/
+segan/segan_v3/
+segan/segan_v4/
+segan_ori/segan_v3/
 
 # compressed files
 *.tar.gz

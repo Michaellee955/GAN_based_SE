@@ -176,8 +176,7 @@ class SEGAN(Model):
             print('num of G returned: ', len(ref_Gs))
             self.reference_G = ref_Gs[0]
             if self.is_ref:
-                pass
-                # self.ref_z = ref_Gs[1]
+                self.ref_z = ref_Gs[1]
             if self.is_ref and do_prelu:
                 self.ref_alpha = ref_Gs[2:]
                 self.alpha_summ = []
